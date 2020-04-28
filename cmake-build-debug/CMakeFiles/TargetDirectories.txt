@@ -1,3 +1,0 @@
-/home/yincp/Desktop/converge_encoder/cmake-build-debug/CMakeFiles/rebuild_cache.dir
-/home/yincp/Desktop/converge_encoder/cmake-build-debug/CMakeFiles/conv_fasta_encoder.dir
-/home/yincp/Desktop/converge_encoder/cmake-build-debug/CMakeFiles/edit_cache.dir

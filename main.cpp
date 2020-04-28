@@ -1,15 +1,15 @@
+#include <assert.h>
+#include <fstream>
 #include <iostream>
+#include <map>
+#include <math.h>
+#include <set>
+#include <string>
+#include <vector>
+
 #include <cereal/types/vector.hpp>
 #include <cereal/types/string.hpp>
 #include <cereal/archives/binary.hpp>
-
-#include <fstream>
-#include <string>
-#include <vector>
-#include <set>
-#include <map>
-#include <math.h>
-#include <assert.h>
 
 
 std::vector<std::string> read_file(std::string const &fileName) {
@@ -17,6 +17,10 @@ std::vector<std::string> read_file(std::string const &fileName) {
   // Open the File
   std::ifstream ifs;
   ifs.open(fileName);
+  if (!ifs.is_open()){
+    std::cout << "File " << fileName << " failed to open" << std::endl;
+    std::terminate();
+  }
   std::string line;
   while (std::getline(ifs, line))
   {
@@ -44,7 +48,6 @@ void load_fasta_sequences(const std::string& filename,
   for (int i=0;i<20;i++){
     letter_int_map[kAlphabtets[i]] = i;
   }
-  
   std::vector<std::string> vecOfStrs = read_file(filename);
   std::string current_header;
   std::vector<int> current_seq;
@@ -83,7 +86,7 @@ void load_fasta_sequences(const std::string& filename,
 
 
 void split_seq(std::vector<int> &seq, int denom, int length,
-  std::vector<std::vector<int>> seed_seqs) {
+  std::vector<std::vector<int>> &seed_seqs) {
   int num_full_cycles = (((int) seq.size())-length) / denom;
   for (int i = 0; i < num_full_cycles; i++) {
     auto first = seq.begin() + i * denom;
@@ -108,6 +111,16 @@ std::vector<std::vector<int>> load_seed_seq(const std::string& filename) {
   for (std::vector<int> seed_seq_wronglen: seed_seq_rawsplit) {
     std::vector<std::vector<int>> seed_seq_split;
     split_seq(seed_seq_wronglen, 10, 30, seed_seq_split);
+
+    for (const std::vector<int>& seq: seed_seq_split) {
+      if (seq.size() != 30){
+        std::cerr << "Assertion Error: In load_seed_seq(), file " << filename
+                  << " , seq in seed_seq_split from split_seq() has wrong "
+                     "length. It has length " << seq.size() << " and not 30."
+                  << std::endl;
+        std::terminate();
+      }
+    }
     for (std::vector<int> seed_seq: seed_seq_split) {
       seed_seq.shrink_to_fit();
       seed_seqs.push_back(seed_seq);
@@ -146,7 +159,7 @@ std::vector<std::vector<double>> read_blosum(const std::string &filename) {
       break;
     }
     if (line[0] == ' ') {
-      for (int i=3;i<3*23+3;i+=3) {
+      for (int i=3;i<3*24;i+=3) {
         assert(line[i] != ' ');
         local_alphabets.push_back(line[i]);
       };
@@ -208,19 +221,42 @@ void load(const std::string& filename, Args&... outputs){
 int main(){
   //  Encode proteome into vector<pair<string, string>>
   // save fasta seq and names separately.
-  std::string proteome_filename = "proteome.fasta";
+  std::string proteome_input = "input/proteome.fasta";
+  std::string proteome_output = "output/proteome_binary";
+  
   std::vector<std::string> headers;
   std::vector<std::vector<int>> sequences;
-  load_fasta_sequences(proteome_filename, headers, sequences);
-  save("proteome_binary", headers, sequences);
+  load_fasta_sequences(proteome_input, headers, sequences);
+  save(proteome_output, headers, sequences);
+  std::cout << proteome_input << " has " << sequences.size() << " sequences."
+  << std::endl;
 
 // Encode seed into vector<string>, each of spacing 10
-  std::string seed_filename = "initial.fasta";
-  std::vector<std::vector<int>> seed_seqs = load_seed_seq(seed_filename);
-  save("seed_seq_binary", seed_seqs);
+  std::string seed_input = "input/initial.fasta";
+  std::string seed_output = "output/seed_seq_binary";
+  std::vector<std::vector<int>> seed_seqs = load_seed_seq(seed_input);
+  save(seed_output, seed_seqs);
+  std::cout << seed_input << " has " << seed_seqs.size() << " sequences."
+            << std::endl;
   
 // Encode blosum
-  std::string blosum_filename = "BLOSUM62";
-  std::vector<std::vector<double>> kBlosum = read_blosum(blosum_filename);
-  save("blosum_binary", kBlosum);
+  std::string blosum_input = "input/BLOSUM62";
+  std::string blosum_output = "output/blosum_binary";
+  std::vector<std::vector<double>> kBlosum = read_blosum(blosum_input);
+  save(blosum_output, kBlosum);
+  std::cout << blosum_input << " has " << kBlosum.size() << " rows."
+            << std::endl;
+  
+// Test seed_seq
+  std::vector<std::vector<int>> test_seed_seqs;
+  load(seed_output, test_seed_seqs);
+  assert(test_seed_seqs.size() == seed_seqs.size());
+  for (size_t i=0;i<test_seed_seqs.size();i++){
+    std::vector<int> test_seq = test_seed_seqs[i];
+    std::vector<int> act_seq = seed_seqs[i];
+    assert(test_seq.size() == act_seq.size());
+    for (size_t j=0;j<test_seq.size();j++){
+      assert(test_seq[j] == act_seq[j]);
+    }
+  }
 }

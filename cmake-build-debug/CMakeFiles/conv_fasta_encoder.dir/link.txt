@@ -1,1 +1,0 @@
-/usr/bin/c++  -g   CMakeFiles/conv_fasta_encoder.dir/main.cpp.o  -o conv_fasta_encoder 
